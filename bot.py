@@ -279,6 +279,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Переход к следующему вопросу или завершение теста
     if text == "➡️ следующий вопрос" or text == "✅ завершить тест":
+        # Если тест не запущен (осталась старая клавиатура "Следующий вопрос"),
+        # трактуем это как старт нового теста, чтобы пользователь не застревал.
+        if not context.user_data.get("test_in_progress", False):
+            context.user_data["current_question"] = 0
+            context.user_data["correct_answers"] = 0
+            context.user_data["test_in_progress"] = True
+            context.user_data["answered_current"] = False
+            await send_question(update, context)
+            return
+
         if not context.user_data.get("answered_current", False):
             await update.message.reply_text(
                 "Сначала ответь на текущий вопрос кнопками «да» или «нет»."
@@ -319,7 +329,7 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
         question_index = context.user_data["current_question"]
         question_data = QUESTIONS[question_index]
 
-        keyboard = [["да", "нет"], ["❌ Отменить тест"]]
+        keyboard = [["да", "нет"], ["🔄 Пройти заново", "❌ Отменить тест"]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
         progress = f"Вопрос {question_index + 1} из {len(QUESTIONS)}\n\n"
@@ -363,13 +373,6 @@ async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Зафиксировать, что на текущий вопрос уже ответили
     context.user_data["answered_current"] = True
 
-    # Кнопка в зависимости от того, последний ли это вопрос
-    is_last = question_index == len(QUESTIONS) - 1
-    next_button = "✅ Завершить тест" if is_last else "➡️ Следующий вопрос"
-    reply_markup = ReplyKeyboardMarkup(
-        [[next_button]], resize_keyboard=True, one_time_keyboard=True
-    )
-
     # Сообщение с учётом правильности ответа
     prefix = (
         "✅ Верно!"
@@ -378,7 +381,15 @@ async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     reason = question_data.get("reason") or question_data["explanation"]
 
-    await update.message.reply_text(f"{prefix}\n{reason}", reply_markup=reply_markup)
+    # Показываем объяснение и автоматически переходим дальше
+    await update.message.reply_text(f"{prefix}\n{reason}")
+
+    is_last = question_index == len(QUESTIONS) - 1
+    if is_last:
+        await show_results(update, context)
+    else:
+        context.user_data["current_question"] += 1
+        await send_question(update, context)
 
 
 async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
