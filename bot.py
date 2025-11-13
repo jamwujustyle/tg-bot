@@ -33,26 +33,31 @@ QUESTIONS = [
         "question": "1️⃣ Является ли треугольник со сторонами 6, 8 и 10 прямоугольным?",
         "answer": "да",
         "explanation": "✅ Верно! 6² + 8² = 36 + 64 = 100 = 10².",
+        "reason": "6² + 8² = 36 + 64 = 100 = 10².",
     },
     {
         "question": "2️⃣ Является ли треугольник со сторонами 7, 24 и 25 прямоугольным?",
         "answer": "да",
         "explanation": "✅ Отлично! 7² + 24² = 49 + 576 = 625 = 25².",
+        "reason": "7² + 24² = 49 + 576 = 625 = 25².",
     },
     {
         "question": "3️⃣ Является ли треугольник со сторонами 5, 5 и 7 прямоугольным?",
         "answer": "нет",
         "explanation": "❌ Нет, 5² + 5² = 50, а 7² = 49 — не равны.",
+        "reason": "5² + 5² = 50, а 7² = 49 — не равны.",
     },
     {
         "question": "4️⃣ Является ли треугольник со сторонами 8, 15 и 17 прямоугольным?",
         "answer": "да",
         "explanation": "✅ Молодец! 8² + 15² = 64 + 225 = 289 = 17².",
+        "reason": "8² + 15² = 64 + 225 = 289 = 17².",
     },
     {
         "question": "5️⃣ Является ли треугольник со сторонами 3, 4 и 6 прямоугольным?",
         "answer": "нет",
         "explanation": "❌ Правильно, 3² + 4² = 25, а 6² = 36 — не равно.",
+        "reason": "3² + 4² = 9 + 16 = 25, а 6² = 36 — не равно.",
     },
 ]
 
@@ -214,6 +219,7 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["test_in_progress"] = False
         context.user_data["current_question"] = 0
         context.user_data["correct_answers"] = 0
+        context.user_data["answered_current"] = False
 
         keyboard = [["🚀 Начать тест"], ["ℹ️ О боте", "📊 Статистика"]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -252,11 +258,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reset_stats(update, context)
         return
 
+    # Отмена теста через кнопку меню
+    if text == "❌ отменить тест" or text == "отменить тест":
+        await cancel_command(update, context)
+        return
+
     # Начало теста
     if text == "🚀 начать тест" or text == "начать тест":
         context.user_data["current_question"] = 0
         context.user_data["correct_answers"] = 0
         context.user_data["test_in_progress"] = True
+        context.user_data["answered_current"] = False
         await send_question(update, context)
         return
 
@@ -267,10 +279,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Переход к следующему вопросу или завершение теста
     if text == "➡️ следующий вопрос" or text == "✅ завершить тест":
-        context.user_data["current_question"] += 1
-        if context.user_data["current_question"] < len(QUESTIONS):
-            await send_question(update, context)
+        if not context.user_data.get("test_in_progress", False):
+            await update.message.reply_text("Сначала начни тест: нажми «🚀 Начать тест».")
+            return
+        if not context.user_data.get("answered_current", False):
+            await update.message.reply_text("Сначала ответь на текущий вопрос кнопками «да» или «нет».")
+            return
+
+        if text == "➡️ следующий вопрос":
+            context.user_data["current_question"] += 1
+            if context.user_data["current_question"] < len(QUESTIONS):
+                await send_question(update, context)
+            else:
+                await show_results(update, context)
         else:
+            # Завершить тест
             await show_results(update, context)
         return
 
@@ -279,6 +302,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["current_question"] = 0
         context.user_data["correct_answers"] = 0
         context.user_data["test_in_progress"] = True
+        context.user_data["answered_current"] = False
         await send_question(update, context)
         return
 
@@ -301,11 +325,11 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         progress = f"Вопрос {question_index + 1} из {len(QUESTIONS)}\n\n"
 
+        context.user_data["answered_current"] = False
+
         await update.message.reply_text(
             progress + question_data["question"],
             reply_markup=reply_markup,
-            read_timeout=30,
-            write_timeout=30,
         )
     except Exception as e:
         logger.error(f"Error sending question: {e}")
@@ -321,6 +345,11 @@ async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await cancel_command(update, context)
         return
 
+    # Не допускаем повторных ответов на один и тот же вопрос
+    if context.user_data.get("answered_current", False):
+        await update.message.reply_text("Ты уже ответил на этот вопрос 🙂 Нажми «➡️ Следующий вопрос».")
+        return
+
     question_index = context.user_data["current_question"]
     question_data = QUESTIONS[question_index]
     correct_answer = question_data["answer"]
@@ -330,15 +359,19 @@ async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_correct:
         context.user_data["correct_answers"] += 1
 
-    # Отправка объяснения
-    keyboard = [["➡️ Следующий вопрос"]]
-    reply_markup = ReplyKeyboardMarkup(
-        keyboard, resize_keyboard=True, one_time_keyboard=True
-    )
+    # Зафиксировать, что на текущий вопрос уже ответили
+    context.user_data["answered_current"] = True
 
-    await update.message.reply_text(
-        question_data["explanation"], reply_markup=reply_markup
-    )
+    # Кнопка в зависимости от того, последний ли это вопрос
+    is_last = question_index == len(QUESTIONS) - 1
+    next_button = "✅ Завершить тест" if is_last else "➡️ Следующий вопрос"
+    reply_markup = ReplyKeyboardMarkup([[next_button]], resize_keyboard=True, one_time_keyboard=True)
+
+    # Сообщение с учётом правильности ответа
+    prefix = "✅ Верно!" if is_correct else f"❌ Неверно. Правильный ответ: {correct_answer.upper()}."
+    reason = question_data.get("reason") or question_data["explanation"]
+
+    await update.message.reply_text(f"{prefix}\n{reason}", reply_markup=reply_markup)
 
 
 async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
