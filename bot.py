@@ -32,27 +32,42 @@ QUESTIONS = [
     {
         "question": "1️⃣ Является ли треугольник со сторонами 6, 8 и 10 прямоугольным?",
         "answer": "да",
-        "explanation": "✅ Верно! 6² + 8² = 36 + 64 = 100 = 10².",
+        "explanations": {
+            "да": "✅ Верно! 6² + 8² = 36 + 64 = 100 = 10².",
+            "нет": "❌ Неверно. Треугольник является прямоугольным, так как 6² + 8² = 10².",
+        },
     },
     {
         "question": "2️⃣ Является ли треугольник со сторонами 7, 24 и 25 прямоугольным?",
         "answer": "да",
-        "explanation": "✅ Отлично! 7² + 24² = 49 + 576 = 625 = 25².",
+        "explanations": {
+            "да": "✅ Отлично! 7² + 24² = 49 + 576 = 625 = 25².",
+            "нет": "❌ Неверно. Треугольник является прямоугольным, так как 7² + 24² = 25².",
+        },
     },
     {
         "question": "3️⃣ Является ли треугольник со сторонами 5, 5 и 7 прямоугольным?",
         "answer": "нет",
-        "explanation": "❌ Нет, 5² + 5² = 50, а 7² = 49 — не равны.",
+        "explanations": {
+            "да": "❌ Ошибка. Треугольник не является прямоугольным, так как 5² + 5² ≠ 7².",
+            "нет": "✅ Правильно! 5² + 5² = 50, а 7² = 49. Они не равны.",
+        },
     },
     {
         "question": "4️⃣ Является ли треугольник со сторонами 8, 15 и 17 прямоугольным?",
         "answer": "да",
-        "explanation": "✅ Молодец! 8² + 15² = 64 + 225 = 289 = 17².",
+        "explanations": {
+            "да": "✅ Молодец! 8² + 15² = 64 + 225 = 289 = 17².",
+            "нет": "❌ Неправильно. Этот треугольник является прямоугольным: 8² + 15² = 17².",
+        },
     },
     {
         "question": "5️⃣ Является ли треугольник со сторонами 3, 4 и 6 прямоугольным?",
         "answer": "нет",
-        "explanation": "✅ Верно! 3² + 4² = 25, а 6² = 36. Поскольку 25 ≠ 36, треугольник не является прямоугольным.",
+        "explanations": {
+            "да": "❌ Неверно. Треугольник не является прямоугольным, так как 3² + 4² ≠ 6².",
+            "нет": "✅ Верно! 3² + 4² = 25, а 6² = 36. Поскольку 25 ≠ 36, треугольник не является прямоугольным.",
+        },
     },
 ]
 
@@ -330,14 +345,13 @@ async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["correct_answers"] += 1
 
     # Отправка объяснения
+    explanation = question_data["explanations"][user_answer]
     keyboard = [["➡️ Следующий вопрос"]]
     reply_markup = ReplyKeyboardMarkup(
         keyboard, resize_keyboard=True, one_time_keyboard=True
     )
 
-    await update.message.reply_text(
-        question_data["explanation"], reply_markup=reply_markup
-    )
+    await update.message.reply_text(explanation, reply_markup=reply_markup)
 
 
 async def show_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
