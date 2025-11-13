@@ -56,7 +56,7 @@ QUESTIONS = [
     {
         "question": "5️⃣ Является ли треугольник со сторонами 3, 4 и 6 прямоугольным?",
         "answer": "нет",
-        "explanation": "❌ Правильно, 3² + 4² = 25, а 6² = 36 — не равно.",
+        "explanation": "❌ Неправильно, 3² + 4² = 25, а 6² = 36 — не равно.",
         "reason": "3² + 4² = 9 + 16 = 25, а 6² = 36 — не равно.",
     },
 ]
@@ -272,9 +272,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_question(update, context)
         return
 
-    # Обработка ответа (только если тест активен)
-    if text in ["да", "нет"] and context.user_data.get("test_in_progress", False):
-        await process_answer(update, context)
+    # Обработка ответа (включая восстановление после перезапуска)
+    if text in ["да", "нет"]:
+        if not context.user_data.get("test_in_progress", False):
+            # Восстановление: запускаем новый тест и используем этот ответ как ответ на первый вопрос
+            context.user_data["current_question"] = 0
+            context.user_data["correct_answers"] = 0
+            context.user_data["test_in_progress"] = True
+            context.user_data["answered_current"] = False
+            await process_answer(update, context)
+        else:
+            await process_answer(update, context)
         return
 
     # Переход к следующему вопросу или завершение теста
@@ -357,7 +365,7 @@ async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Не допускаем повторных ответов на один и тот же вопрос
     if context.user_data.get("answered_current", False):
         await update.message.reply_text(
-            "Ты уже ответил на этот вопрос 🙂 Нажми «➡️ Следующий вопрос»."
+            "Ответ уже принят 🙂 Следующий вопрос отправлен."
         )
         return
 
