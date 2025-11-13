@@ -279,11 +279,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Переход к следующему вопросу или завершение теста
     if text == "➡️ следующий вопрос" or text == "✅ завершить тест":
-        if not context.user_data.get("test_in_progress", False):
-            await update.message.reply_text("Сначала начни тест: нажми «🚀 Начать тест».")
-            return
         if not context.user_data.get("answered_current", False):
-            await update.message.reply_text("Сначала ответь на текущий вопрос кнопками «да» или «нет».")
+            await update.message.reply_text(
+                "Сначала ответь на текущий вопрос кнопками «да» или «нет»."
+            )
             return
 
         if text == "➡️ следующий вопрос":
@@ -347,7 +346,9 @@ async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Не допускаем повторных ответов на один и тот же вопрос
     if context.user_data.get("answered_current", False):
-        await update.message.reply_text("Ты уже ответил на этот вопрос 🙂 Нажми «➡️ Следующий вопрос».")
+        await update.message.reply_text(
+            "Ты уже ответил на этот вопрос 🙂 Нажми «➡️ Следующий вопрос»."
+        )
         return
 
     question_index = context.user_data["current_question"]
@@ -365,10 +366,16 @@ async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Кнопка в зависимости от того, последний ли это вопрос
     is_last = question_index == len(QUESTIONS) - 1
     next_button = "✅ Завершить тест" if is_last else "➡️ Следующий вопрос"
-    reply_markup = ReplyKeyboardMarkup([[next_button]], resize_keyboard=True, one_time_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(
+        [[next_button]], resize_keyboard=True, one_time_keyboard=True
+    )
 
     # Сообщение с учётом правильности ответа
-    prefix = "✅ Верно!" if is_correct else f"❌ Неверно. Правильный ответ: {correct_answer.upper()}."
+    prefix = (
+        "✅ Верно!"
+        if is_correct
+        else f"❌ Неверно. Правильный ответ: {correct_answer.upper()}."
+    )
     reason = question_data.get("reason") or question_data["explanation"]
 
     await update.message.reply_text(f"{prefix}\n{reason}", reply_markup=reply_markup)
