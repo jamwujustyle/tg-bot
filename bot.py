@@ -52,7 +52,7 @@ QUESTIONS = [
     {
         "question": "5️⃣ Является ли треугольник со сторонами 3, 4 и 6 прямоугольным?",
         "answer": "нет",
-        "explanation": "❌ Правильно, 3² + 4² = 25, а 6² = 36 — не равно.",
+        "explanation": "❌ Неправильно, 3² + 4² = 25, а 6² = 36 — не равно.",
     },
 ]
 
@@ -252,6 +252,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reset_stats(update, context)
         return
 
+    if text == "❌ отменить тест":
+        await cancel_command(update, context)
+        return
+
     # Начало теста
     if text == "🚀 начать тест" or text == "начать тест":
         context.user_data["current_question"] = 0
@@ -315,11 +319,6 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def process_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка ответа пользователя"""
     user_answer = update.message.text.lower().strip()
-
-    # Проверка на отмену
-    if user_answer == "❌ отменить тест":
-        await cancel_command(update, context)
-        return
 
     question_index = context.user_data["current_question"]
     question_data = QUESTIONS[question_index]
